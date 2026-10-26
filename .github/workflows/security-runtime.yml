@@ -1,6 +1,8 @@
 name: Security runtime candidate
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/patched-runtime-20261026]
 permissions:
   contents: read
 jobs:
