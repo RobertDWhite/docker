@@ -66,6 +66,7 @@ RUN set -ex \
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 COPY root /
+COPY security-composer.lock /tmp/security-composer.lock
 
 RUN set -ex \
  && curl -L -o /tmp/wallabag.tar.gz https://github.com/wallabag/wallabag/releases/download/$WALLABAG_VERSION/wallabag-$WALLABAG_VERSION.tar.gz \
@@ -74,6 +75,8 @@ RUN set -ex \
  && mv /tmp/wallabag-*/* /var/www/wallabag/ \
  && rm -rf /tmp/wallabag* \
  && cd /var/www/wallabag \
+ && cp /tmp/security-composer.lock composer.lock \
+ && rm /tmp/security-composer.lock \
  && mkdir data/assets \
  && envsubst < /etc/wallabag/parameters.template.yml > app/config/parameters.yml \
  && SYMFONY_ENV=prod composer install --no-dev -o --prefer-dist --no-progress \
