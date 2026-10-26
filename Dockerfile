@@ -2,7 +2,7 @@ ARG COMPOSER_VERSION=2.2
 
 FROM composer:$COMPOSER_VERSION AS composer
 
-FROM golang:alpine AS builder
+FROM golang:1.26.10-alpine@sha256:27f2d3b83cfc5803c8078f8e730af0f7c431bf067afaec8f60a36fb763187cba AS builder
 
 # envsubst from gettext can not replace env vars with default values
 # this package is not available for ARM32 and we have to build it from source code
@@ -58,6 +58,7 @@ RUN set -ex \
       tzdata \
  && ln -sf /usr/bin/php84 /usr/bin/php \
  && ln -sf /usr/sbin/php-fpm84 /usr/sbin/php-fpm \
+ && php -r 'if (PHP_VERSION_ID < 80427) { fwrite(STDERR, "PHP 8.4.27 or newer is required for the October 2026 security fixes.\n"); exit(1); }' \
  && rm -rf /var/cache/apk/* \
  && ln -sf /dev/stdout /var/log/nginx/access.log \
  && ln -sf /dev/stderr /var/log/nginx/error.log
@@ -65,6 +66,7 @@ RUN set -ex \
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 
 COPY root /
+COPY security-composer.json security-composer.lock /tmp/
 
 RUN set -ex \
  && curl -L -o /tmp/wallabag.tar.gz https://github.com/wallabag/wallabag/releases/download/$WALLABAG_VERSION/wallabag-$WALLABAG_VERSION.tar.gz \
@@ -73,9 +75,12 @@ RUN set -ex \
  && mv /tmp/wallabag-*/* /var/www/wallabag/ \
  && rm -rf /tmp/wallabag* \
  && cd /var/www/wallabag \
+ && cp /tmp/security-composer.json composer.json \
+ && cp /tmp/security-composer.lock composer.lock \
+ && rm /tmp/security-composer.json /tmp/security-composer.lock \
  && mkdir data/assets \
  && envsubst < /etc/wallabag/parameters.template.yml > app/config/parameters.yml \
- && SYMFONY_ENV=prod composer install --no-dev -o --prefer-dist --no-progress \
+ && SYMFONY_ENV=prod composer install --ignore-platform-req=php+ --no-dev -o --prefer-dist --no-progress \
  && rm -rf /root/.composer/* /var/www/wallabag/var/cache/* /var/www/wallabag/var/logs/* /var/www/wallabag/var/sessions/* \
  && chown -R nobody:nobody /var/www/wallabag
 
